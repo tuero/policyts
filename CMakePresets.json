@@ -1,0 +1,50 @@
+{
+  "version": 4,
+  "configurePresets": [
+    {
+      "name": "core",
+      "hidden": true,
+      "binaryDir": "${sourceDir}/build/${presetName}",
+      "environment": {
+        "VCPKG_KEEP_ENV_VARS": "LIBTORCH_ROOT"
+      },
+      "cacheVariables": {
+        "CMAKE_TOOLCHAIN_FILE": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
+        "VCPKG_OVERLAY_TRIPLETS": "${sourceDir}/cmake/triplets",
+        "VCPKG_TARGET_TRIPLET": "x64-linux-static",
+        "VCPKG_HOST_TRIPLET": "x64-linux-static",
+        "VCPKG_CHAINLOAD_TOOLCHAIN_FILE": "${sourceDir}/cmake/toolchains/linux-toolchain.cmake",
+        "CMAKE_PREFIX_PATH": "$env{LIBTORCH_ROOT}/Torch",
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
+      }
+    },
+    {
+      "name": "release",
+      "inherits": ["core"],
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "CMAKE_CXX_FLAGS": "-DNDEBUG -O3 -Wall -Wextra -Wconversion -Wsign-conversion -Wunused -Wshadow"
+      }
+    },
+    {
+      "name": "debug",
+      "inherits": ["core"],
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "CMAKE_CXX_FLAGS": "-ggdb3 -O0 -fno-omit-frame-pointer -Wall -Wextra -Wconversion -Wsign-conversion -Wunused -Wshadow"
+      }
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "release",
+      "displayName": "Release",
+      "configurePreset": "release"
+    },
+    {
+      "name": "debug",
+      "displayName": "Debug",
+      "configurePreset": "debug"
+    }
+  ]
+}

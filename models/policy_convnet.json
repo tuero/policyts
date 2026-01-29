@@ -1,0 +1,11 @@
+{
+    "model_type": "policy_convnet",
+    "resnet_channels" : 128,
+    "resnet_blocks": 8,
+    "policy_channels": 2,
+    "policy_mlp_layers": [],
+    "use_batchnorm": false,
+    "learning_rate": 0.000300,
+    "l2_weight_decay": 0.000100,
+    "device": "auto"
+}

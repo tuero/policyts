@@ -1,0 +1,11 @@
+{
+  "dependencies": [
+    {
+      "name": "libpolicyts",
+      "features": [
+        "torch",
+        "environment"
+      ]
+    }
+  ]
+}
