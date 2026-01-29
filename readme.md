@@ -2,7 +2,7 @@
 
 A C++23 wrapper project containing training and testing of various tree search algorithms which utilize learned policies and heuristics.
 Algorithm implementations are in [libpolicyts](https://github.com/tuero/libpolicyts) which we pull in as a dependency,
-and parameterize using the implemented neural policy/heuristics and environments
+and parameterize using the implemented neural policy/heuristics and environments.
 
 ## Supported Algorithms
 - __Best First Search__: A general search algorithm with controlled weights on the g-cost and h-cost
