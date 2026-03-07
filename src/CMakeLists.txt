@@ -1,3 +1,6 @@
 add_subdirectory(bfs)
 add_subdirectory(lts)
 add_subdirectory(phs)
+add_subdirectory(siirlts)
+add_subdirectory(rlts_domain)
+add_subdirectory(misc)

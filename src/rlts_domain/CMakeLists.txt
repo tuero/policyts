@@ -1,0 +1,8 @@
+# rlts_domain
+add_executable(rlts_domain_train rlts_domain_train.cpp domain_rerooter.cpp)
+target_link_libraries(rlts_domain_train libpolicyts::libpolicyts)
+target_compile_features(rlts_domain_train PUBLIC cxx_std_23)
+
+add_executable(rlts_domain_test rlts_domain_test.cpp domain_rerooter.cpp)
+target_link_libraries(rlts_domain_test libpolicyts::libpolicyts)
+target_compile_features(rlts_domain_test PUBLIC cxx_std_23)
