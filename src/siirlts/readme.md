@@ -2,10 +2,10 @@
 
 For all invocations, ensure you are in the project root directory.
 
-$\sqrt{\text{LTS}}\text{-L}$, $\sqrt{\text{LTS}}\text{-H}$, and $\sqrt{\text{LTS}}\text{-LH}$ are all implemented as the same underlying algorithm, controlled with parameters `alpha` and `beta` which is the multiplicative factor in front of the clustering and heuristic rerooter respectively:
-- $\sqrt{\text{LTS}}\text{-L}$: `alpha=1`, `beta=0`
-- $\sqrt{\text{LTS}}\text{-H}$: `alpha=0`, `beta=1`
-- $\sqrt{\text{LTS}}\text{-LH}$: `alpha=1`, `beta=1`
+$\sqrt{\text{LTS}}\text{-L}$, $\sqrt{\text{LTS}}\text{-H}$, and $\sqrt{\text{LTS}}\text{-LH}$ are all implemented as the same underlying algorithm, controlled with parameters `ua` and `ub` which is the multiplicative factor in front of the clustering and heuristic rerooter respectively:
+- $\sqrt{\text{LTS}}\text{-L}$: `ua=1`, `ub=0`
+- $\sqrt{\text{LTS}}\text{-H}$: `ua=0`, `ub=1`
+- $\sqrt{\text{LTS}}\text{-LH}$: `ua=1`, `ub=1`
 
 For help usage, 
 ```shell
