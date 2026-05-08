@@ -27,7 +27,13 @@ ABSL_FLAG(std::string, model_path, "", "Path for the twoheaded convnet model wra
 ABSL_FLAG(int, search_budget, 4000, "Maximum number of expanded nodes before termination");
 ABSL_FLAG(int, inference_batch_size, 32, "Number of search expansions to batch per inference query");
 ABSL_FLAG(double, mix_epsilon, 0.01, "Percentage to mix with uniform policy");
-ABSL_FLAG(rlts::CostMode, cost_mode, rlts::CostMode::Slenderness, "The cost mode to use");
+ABSL_FLAG(rlts::CostMode, cost_mode, rlts::CostMode::Slenderness, "The cost mode to use (slenderness, dpi)");
+ABSL_FLAG(
+    libpts::algorithm::rlts::PruningPolicy,
+    prune_policy,
+    libpts::algorithm::rlts::PruningPolicy::Eager,
+    "Pruning mode (none, passive, eager)"
+);
 ABSL_FLAG(bool, robustness, false, "Use robust weights for the rerooter");
 ABSL_FLAG(int, seed, 0, "Seed for all sources of RNG");
 ABSL_FLAG(std::size_t, num_train, INF_SIZE_T, "Number of instances of the max to use for training");
@@ -63,16 +69,19 @@ auto create_search_inputs(
     std::vector<SearchInputT> search_inputs;
 
     for (auto i : std::views::iota(static_cast<std::size_t>(0)) | std::views::take(problems.size())) {
-        search_inputs.emplace_back(
-            std::format("puzzle_{:d}", i),
-            problems[i],
-            absl::GetFlag(FLAGS_search_budget),
-            absl::GetFlag(FLAGS_inference_batch_size),
-            absl::GetFlag(FLAGS_mix_epsilon),
-            absl::GetFlag(FLAGS_cost_mode),
-            stop_token,
-            model_wrapper,
-            RLTSDomainRerooter<EnvT>{absl::GetFlag(FLAGS_robustness)}
+        search_inputs.push_back(
+            SearchInputT{
+            .puzzle_name = std::format("puzzle_{:d}", i),
+            .state = problems[i],
+            .search_budget = absl::GetFlag(FLAGS_search_budget),
+            .inference_batch_size = absl::GetFlag(FLAGS_inference_batch_size),
+            .mix_epsilon = absl::GetFlag(FLAGS_mix_epsilon),
+            .cost_mode = absl::GetFlag(FLAGS_cost_mode),
+            .prune_policy = absl::GetFlag(FLAGS_prune_policy),
+            .stop_token = stop_token,
+            .model = model_wrapper,
+            .rerooter = RLTSDomainRerooter<EnvT>{absl::GetFlag(FLAGS_robustness)}
+            }
         );
     }
     return libpts::train::split_train_validate(

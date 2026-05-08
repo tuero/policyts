@@ -24,6 +24,12 @@ ABSL_FLAG(int, search_budget, 4000, "Maximum number of expanded nodes before ter
 ABSL_FLAG(int, inference_batch_size, 32, "Number of search expansions to batch per inference query");
 ABSL_FLAG(double, weight_g, 1, "Weight to apply to the g-cost");
 ABSL_FLAG(double, weight_h, 1, "Weight to apply to the h-cost");
+ABSL_FLAG(
+    libpts::algorithm::bfs::PruningPolicy,
+    prune_policy,
+    libpts::algorithm::bfs::PruningPolicy::Eager,
+    "Pruning mode (none, passive, eager)"
+);
 ABSL_FLAG(int, seed, 0, "Seed for all sources of RNG");
 ABSL_FLAG(std::size_t, num_train, INF_SIZE_T, "Number of instances of the max to use for training");
 ABSL_FLAG(std::size_t, num_validate, INF_SIZE_T, "Number of instances of the max to use for validation");
@@ -55,7 +61,8 @@ auto create_search_inputs(
     const std::vector<EnvT> &problems,
     std::shared_ptr<libpts::StopToken> stop_token,
     std::shared_ptr<ModelT> model_wrapper
-) {
+)
+{
     using SearchInputT = bfs::SearchInput<EnvT, ModelT>;
     std::vector<SearchInputT> search_inputs;
     for (auto i : std::views::iota(static_cast<std::size_t>(0)) | std::views::take(problems.size())) {
@@ -66,6 +73,7 @@ auto create_search_inputs(
             absl::GetFlag(FLAGS_inference_batch_size),
             absl::GetFlag(FLAGS_weight_g),
             absl::GetFlag(FLAGS_weight_h),
+            absl::GetFlag(FLAGS_prune_policy),
             stop_token,
             model_wrapper
         );
@@ -88,20 +96,19 @@ class BFSLearner {
 
 public:
     BFSLearner(std::shared_ptr<ModelT> model_wrapper, int learning_batch_size, int grad_steps)
-        : model_wrapper_(std::move(model_wrapper)),
-          learning_batch_size_(learning_batch_size),
-          grad_steps_(grad_steps) {}
+        : model_wrapper_(std::move(model_wrapper)), learning_batch_size_(learning_batch_size), grad_steps_(grad_steps)
+    {}
 
-    void checkpoint() {
+    void checkpoint()
+    {
         model_wrapper_->save_checkpoint_without_optimizer(-1);
     }
 
-    void preprocess(
-        [[maybe_unused]] std::vector<bfs::SearchInput<EnvT, ModelT>> &batch,
-        [[maybe_unused]] bool is_train
-    ) {}
+    void preprocess([[maybe_unused]] std::vector<bfs::SearchInput<EnvT, ModelT>> &batch, [[maybe_unused]] bool is_train)
+    {}
 
-    void process_data(std::vector<SearchOutputT> &&search_outputs) {
+    void process_data(std::vector<SearchOutputT> &&search_outputs)
+    {
         learning_inputs.clear();
         for (auto &&result : std::move(search_outputs)) {
             if (result.solution_found) {
@@ -114,7 +121,8 @@ public:
         }
     }
 
-    void learning_step(std::mt19937 &rng) {
+    void learning_step(std::mt19937 &rng)
+    {
         if (!learning_inputs.empty()) {
             for (int _ : std::views::iota(0) | std::views::take(grad_steps_)) {
                 std::ranges::shuffle(learning_inputs, rng);
@@ -139,7 +147,8 @@ private:
 };
 
 template <typename EnvT>
-void templated_main() {
+void templated_main()
+{
     using SearchInputT = bfs::SearchInput<EnvT, ModelT>;
     using SearchOutputT = bfs::SearchOutput<EnvT>;
 
@@ -193,7 +202,8 @@ void templated_main() {
 }
 }    // namespace
 
-int main(int argc, char **argv) {
+int main(int argc, char **argv)
+{
     absl::ParseCommandLine(argc, argv);
 
     // Create output directory if it doesn't exist

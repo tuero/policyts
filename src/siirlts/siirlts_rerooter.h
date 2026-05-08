@@ -83,16 +83,18 @@ public:
         ClusterLevel _cluster_level,
         WeightMode _weight_mode,
         double _graph_update_factor,
+        double _ua,
+        double _ub,
         double _alpha,
-        double _beta,
         int _seed
     )
         : robust_mode(_robust_mode),
           cluster_level(_cluster_level),
           weight_mode(_weight_mode),
           graph_update_factor(_graph_update_factor),
+          ua(_ua),
+          ub(_ub),
           alpha(_alpha),
-          beta(_beta),
           seed(_seed)
     {}
 
@@ -103,10 +105,7 @@ public:
         batch_inference_counter = -1;
         next_graph_update = 1;
         id_edges.clear();
-        node_ids.clear();
-        open_node_ids.clear();
-        closed_node_ids.clear();
-        node_id_to_cluster.clear();
+        id_to_cluster.clear();
         node_id_to_w.clear();
         node_id_to_w_cluster.clear();
         node_id_to_w_heuristic.clear();
@@ -124,44 +123,50 @@ public:
 
     void init(const libpts::algorithm::rlts::Node<EnvT> &root_node)
     {
-        node_ids.insert(root_node.id);
-        open_node_ids.insert(root_node.id);
         base_h = std::max(root_node.h, 1.0);
+        state_to_id[&root_node] = static_cast<int>(state_to_id.size());
     }
 
-    void expanded(const libpts::algorithm::rlts::Node<EnvT> &node)
-    {
-        assert(open_node_ids.contains(node.id));
-        open_node_ids.erase(node.id);
-        closed_node_ids.insert(node.id);
-    }
+    void expanded(
+        [[maybe_unused]] const libpts::algorithm::rlts::Node<EnvT> &node,
+        [[maybe_unused]] const libpts::algorithm::rlts::TreeProxyView<EnvT> &tree_view
+    )
+    {}
 
     void generated(
         const libpts::algorithm::rlts::Node<EnvT> &current_node,
-        const libpts::algorithm::rlts::Node<EnvT> &child_node
+        const libpts::algorithm::rlts::Node<EnvT> &child_node,
+        [[maybe_unused]] const libpts::algorithm::rlts::TreeProxyView<EnvT> &tree_view
     )
     {
-        node_ids.insert(child_node.id);
-        open_node_ids.insert(child_node.id);
-        // Link underlying graph
-        id_edges.emplace_back(current_node.id, child_node.id);
+        assert(state_to_id.contains(&current_node));
+        if (!state_to_id.contains(&child_node)) {
+            state_to_id[&child_node] = static_cast<int>(state_to_id.size());
+        }
+        id_edges.emplace_back(state_to_id.at(&current_node), state_to_id.at(&child_node));
     }
 
-    void prev_generated(
+    void visited(
         const libpts::algorithm::rlts::Node<EnvT> &current_node,
-        const libpts::algorithm::rlts::Node<EnvT> &prev_generated_node
+        const libpts::algorithm::rlts::Node<EnvT> &visited_node,
+        [[maybe_unused]] const libpts::algorithm::rlts::TreeProxyView<EnvT> &tree_view
     )
     {
-        // If we did previously generate, we have another path through the node,
-        // and thus we need to link underlying graph
-        id_edges.emplace_back(current_node.id, prev_generated_node.id);
+        // Seen this state before, add another graph link
+        if (state_to_id.contains(&visited_node)) {
+            id_edges.emplace_back(state_to_id.at(&current_node), state_to_id.at(&visited_node));
+        }
     }
 
-    auto operator()(const libpts::algorithm::rlts::Node<EnvT> &node) -> double
+    auto operator()(
+        const libpts::algorithm::rlts::Node<EnvT> &node,
+        [[maybe_unused]] const libpts::algorithm::rlts::TreeProxyView<EnvT> &tree_view
+
+    ) -> double
     {
         auto compute_clustering_weight = [&]() -> double {
-            bool has_cluster = node_id_to_cluster.contains(node.id);
-            auto cluster_id = has_cluster ? node_id_to_cluster[node.id] : -1;
+            bool has_cluster = id_to_cluster.contains(state_to_id.at(&node));
+            auto cluster_id = has_cluster ? id_to_cluster[state_to_id.at(&node)] : -1;
             double parent_w_cluster = node_id_to_w_cluster[node.parent->id];
 
             switch (weight_mode) {
@@ -193,8 +198,8 @@ public:
 
         // Weights (ensure root gets weight of 1)
         bool is_root = !node.parent;
-        double wa = is_root ? 1.0 : alpha * compute_clustering_weight();
-        double wb = is_root ? 1.0 : beta * std::clamp(1.0 - node.h / base_h, 0.0, 1.0);
+        double wa = is_root ? 1.0 : ua * compute_clustering_weight();
+        double wb = is_root ? 1.0 : ub * std::exp(-alpha * node.h / base_h);
         cw_cluster += wa;
         cw_heuristic += wb;
 
@@ -224,12 +229,12 @@ public:
         return is_root ? 1.0 : w;
     }
 
-    void batch_inferenced()
+    void batch_inferenced(const libpts::algorithm::rlts::TreeProxyView<EnvT> &tree_view)
     {
         ++batch_inference_counter;
         // Check if new graph needs to be made
         if (batch_inference_counter >= next_graph_update) {
-            update_cluster_data();
+            update_cluster_data(tree_view);
             next_graph_update =
                 static_cast<int>(std::ceil(graph_update_factor * static_cast<double>(next_graph_update)));
         }
@@ -251,7 +256,8 @@ public:
 
     void solution_found(
         const libpts::algorithm::rlts::Node<EnvT> &node,
-        [[maybe_unused]] const libpts::algorithm::rlts::NodeSet<EnvT> &tree_nodes
+        [[maybe_unused]] const libpts::algorithm::rlts::TreeProxyView<EnvT> &tree_view
+
     )
     {
         auto current = &node;
@@ -276,7 +282,7 @@ public:
 private:
     auto make_graph() -> libpts::clustering::ClusterGraphs
     {
-        int NUM_VERTICES = static_cast<int>(node_ids.size());
+        int NUM_VERTICES = static_cast<int>(state_to_id.size());
         std::vector<int> edges;
         edges.reserve(id_edges.size() * 2);
         for (const auto &[id_from, id_to] : id_edges) {
@@ -299,24 +305,25 @@ private:
         std::unreachable();
     }
 
-    void update_cluster_data()
+    void update_cluster_data(const libpts::algorithm::rlts::TreeProxyView<EnvT> &tree_view)
     {
         // New graph clustering
         const libpts::clustering::ClusterGraphs graph_wrapper = make_graph();
         const auto c_level = get_cluster_level(graph_wrapper);
 
         // Set node cluster color IDs
-        node_id_to_cluster.clear();
-        for (auto &node_id : node_ids) {
-            node_id_to_cluster[node_id] = static_cast<int>(graph_wrapper.get_cluster_id(node_id, c_level));
+        id_to_cluster.clear();
+        for (int id : std::views::iota(0, static_cast<int>(state_to_id.size()))) {
+            id_to_cluster[id] = static_cast<int>(graph_wrapper.get_cluster_id(id, c_level));
         }
 
         // Weight mode specific updates
-        auto count_node_colors = [&](const std::unordered_set<int> &_node_ids) {
+        auto count_colors = [&](const auto &nodes) {
             cluster_id_expansion_count_map.clear();
-            for (const auto &node_id : _node_ids) {
-                assert(node_id_to_cluster.contains(node_id));
-                ++cluster_id_expansion_count_map[node_id_to_cluster[node_id]];
+            for (const auto &node : nodes) {
+                int id = state_to_id.at(node);
+                assert(id_to_cluster.contains(id));
+                ++cluster_id_expansion_count_map[id_to_cluster[id]];
             }
         };
         switch (weight_mode) {
@@ -325,18 +332,18 @@ private:
         case WeightMode::ClosedCount:
         case WeightMode::ClosedCountIncrement:
         case WeightMode::ClosedCountParentIncrement:
-            count_node_colors(closed_node_ids);
+            count_colors(tree_view.closed);
             break;
         case WeightMode::OpenCount:
         case WeightMode::OpenCountIncrement:
         case WeightMode::OpenCountParentIncrement:
-            count_node_colors(open_node_ids);
+            count_colors(tree_view.open);
             break;
         case WeightMode::AllCount:
         case WeightMode::AllCountIncrement:
         case WeightMode::AllCountParentIncrement:
         case WeightMode::AllCountParent:
-            count_node_colors(node_ids);
+            count_colors(tree_view.generated);
             break;
         }
     }
@@ -346,8 +353,9 @@ private:
     ClusterLevel cluster_level;
     WeightMode weight_mode;
     double graph_update_factor;
+    double ua;
+    double ub;
     double alpha;
-    double beta;
     int seed;
     // Args during construction
     double cw_cluster = 0;
@@ -355,10 +363,13 @@ private:
     double base_h = 1;
     int batch_inference_counter = -1;    // How many times we've done inference
     int next_graph_update = 1;           // Step when the next graph update to be done
-    std::unordered_set<int> node_ids;
-    std::unordered_set<int> open_node_ids;
-    std::unordered_set<int> closed_node_ids;
-    std::unordered_map<int, int> node_id_to_cluster;
+    std::unordered_map<
+        const libpts::algorithm::rlts::Node<EnvT> *,
+        int,
+        libpts::algorithm::rlts::NodeHasher,
+        libpts::algorithm::rlts::NodeCompareEqual>
+        state_to_id;
+    std::unordered_map<int, int> id_to_cluster;
     std::unordered_map<int, double> node_id_to_w;
     std::unordered_map<int, double> node_id_to_w_cluster;
     std::unordered_map<int, double> node_id_to_w_heuristic;

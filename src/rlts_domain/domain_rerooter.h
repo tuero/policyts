@@ -56,7 +56,10 @@ public:
         open_node_ids.insert(root_node.id);
     }
 
-    void expanded(const libpts::algorithm::rlts::Node<EnvT> &node)
+    void expanded(
+        const libpts::algorithm::rlts::Node<EnvT> &node,
+        [[maybe_unused]] const libpts::algorithm::rlts::TreeProxyView<EnvT> &tree_view
+    )
     {
         assert(open_node_ids.contains(node.id));
         open_node_ids.erase(node.id);
@@ -65,20 +68,25 @@ public:
 
     void generated(
         [[maybe_unused]] const libpts::algorithm::rlts::Node<EnvT> &current_node,
-        const libpts::algorithm::rlts::Node<EnvT> &child_node
+        const libpts::algorithm::rlts::Node<EnvT> &child_node,
+        [[maybe_unused]] const libpts::algorithm::rlts::TreeProxyView<EnvT> &tree_view
     )
     {
         node_ids.insert(child_node.id);
         open_node_ids.insert(child_node.id);
     }
 
-    void prev_generated(
+    void visited(
         [[maybe_unused]] const libpts::algorithm::rlts::Node<EnvT> &current_node,
-        [[maybe_unused]] const libpts::algorithm::rlts::Node<EnvT> &prev_generated_node
+        [[maybe_unused]] const libpts::algorithm::rlts::Node<EnvT> &child_node,
+        [[maybe_unused]] const libpts::algorithm::rlts::TreeProxyView<EnvT> &tree_view
     )
     {}
 
-    auto operator()(const libpts::algorithm::rlts::Node<EnvT> &node) -> double
+    auto operator()(
+        const libpts::algorithm::rlts::Node<EnvT> &node,
+        [[maybe_unused]] const libpts::algorithm::rlts::TreeProxyView<EnvT> &tree_view
+    ) -> double
     {
         double w = 0;
         if constexpr (std::is_same_v<EnvT, libpts::env::BoulderDashState>) {
@@ -129,7 +137,7 @@ public:
         return is_root ? 1.0 : w;
     }
 
-    void batch_inferenced() {}
+    void batch_inferenced([[maybe_unused]] const libpts::algorithm::rlts::TreeProxyView<EnvT> &tree_view) {}
 
     auto get_search_output() const -> RLTSDomainRerooterSearchOutput
     {
@@ -142,7 +150,7 @@ public:
 
     void solution_found(
         const libpts::algorithm::rlts::Node<EnvT> &node,
-        [[maybe_unused]] const libpts::algorithm::rlts::NodeSet<EnvT> &tree_nodes
+        [[maybe_unused]] const libpts::algorithm::rlts::TreeProxyView<EnvT> &tree_view
     )
     {
         auto current = &node;

@@ -23,6 +23,12 @@ ABSL_FLAG(int, search_budget, 4000, "Maximum number of expanded nodes before ter
 ABSL_FLAG(int, inference_batch_size, 32, "Number of search expansions to batch per inference query");
 ABSL_FLAG(double, weight_g, 1, "Weight to apply to the g-cost");
 ABSL_FLAG(double, weight_h, 1, "Weight to apply to the h-cost");
+ABSL_FLAG(
+    libpts::algorithm::bfs::PruningPolicy,
+    prune_policy,
+    libpts::algorithm::bfs::PruningPolicy::Eager,
+    "Pruning mode (none, passive, eager)"
+);
 ABSL_FLAG(int, max_iterations, INF_I, "Budget in number of iterations before terminating training/testing procedure");
 ABSL_FLAG(double, time_budget, INF_D, "Budget in seconds before terminating");
 ABSL_FLAG(int, num_threads, 1, "Number of threads to run in the search thread pool");
@@ -40,7 +46,8 @@ auto create_search_inputs(
     const std::vector<EnvT> &problems,
     std::shared_ptr<libpts::StopToken> stop_token,
     std::shared_ptr<ModelT> model_wrapper
-) {
+)
+{
     namespace bfs = libpts::algorithm::bfs;
     using SearchInputT = bfs::SearchInput<EnvT, ModelT>;
     std::vector<SearchInputT> search_inputs;
@@ -52,6 +59,7 @@ auto create_search_inputs(
             absl::GetFlag(FLAGS_inference_batch_size),
             absl::GetFlag(FLAGS_weight_g),
             absl::GetFlag(FLAGS_weight_h),
+            absl::GetFlag(FLAGS_prune_policy),
             stop_token,
             model_wrapper
         );
@@ -62,7 +70,8 @@ auto create_search_inputs(
 using json = nlohmann::json;
 
 template <typename EnvT>
-void templated_main() {
+void templated_main()
+{
     using SearchInputT = bfs::SearchInput<EnvT, ModelT>;
     using SearchOutputT = bfs::SearchOutput<EnvT>;
 
@@ -106,7 +115,8 @@ void templated_main() {
 }
 }    // namespace
 
-int main(int argc, char **argv) {
+int main(int argc, char **argv)
+{
     absl::ParseCommandLine(argc, argv);
 
     // Create output directory if it doesn't exist

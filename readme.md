@@ -9,6 +9,7 @@ and parameterize using the implemented neural policy/heuristics and environments
 - __LevinTS__: Orseau, Laurent, et al. "Single-agent policy tree search with guarantees." Advances in Neural Information Processing Systems 31 (2018).
 - __PHS*__: Orseau, Laurent, and Levi HS Lelis. "Policy-guided heuristic search with guarantees." Proceedings of the AAAI Conference on Artificial Intelligence. Vol. 35. No. 14. 2021.
 - $\sqrt{\mathrm{LTS}}$: Orseau, Laurent, Marcus Hutter, and Levi HS Lelis. "Exponential Speedups by Rerooting Levin Tree Search." (2024).
+- $\sqrt{\mathrm{LTS}}\mathrm{-L}$, $\sqrt{\mathrm{LTS}}\mathrm{-H}$, and $\sqrt{\mathrm{LTS}}\mathrm{-LH}$: Tuero, Jake and Buro, Michael and Orseau, Laurent and Lelis, Levi. "Structure Induced Information for Rerooting Levin Tree Search". Proceedings of the 43rd International Conference on Machine Learning. 2026.
 
 
 ## Supported Environments
@@ -41,7 +42,7 @@ For example:
 ```shell
 export CC=gcc-15.2
 export CXX=g++-15.2
-export FC=gfortrain-15.2
+export FC=gfortran-15.2
 # Ensure you activated the policyts virtual environment
 export LIBTORCH_ROOT=`python3 -c 'import torch;print(torch.utils.cmake_prefix_path)'`
 ```
@@ -66,7 +67,7 @@ Each algorithm in `src/` will have a readme which describes how to invoke the al
 - `src/lts/`: Levin Tree Search
 - `src/phs/`: Policy-Guided Heuristic Search
 - `src/rlts_domain/`: $\sqrt{\mathrm{LTS}}$ using domain-aware rerooters
-- `src/siirlts/`: $\sqrt{\mathrm{LTS}}\mathrm{-L}$, $\sqrt{\mathrm{LTS}}\mathrm{-H}$, and $\sqrt{\mathrm{LTS}}\mathrm{-LH}$ from Structure Induced Information for Rerooting Levin Tree Search 
+- `src/siirlts/`: $\sqrt{\mathrm{LTS}}\mathrm{-L}$, $\sqrt{\mathrm{LTS}}\mathrm{-H}$, and $\sqrt{\mathrm{LTS}}\mathrm{-LH}$ from Tuero, Jake and Buro, Michael and Orseau, Laurent and Lelis, Levi. "Structure Induced Information for Rerooting Levin Tree Search". Proceedings of the 43rd International Conference on Machine Learning. 2026.
 
 For an example of how to train a policy network for PHS*:
 ```shell

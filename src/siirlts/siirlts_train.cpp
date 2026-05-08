@@ -30,10 +30,17 @@ ABSL_FLAG(double, mix_epsilon, 0.01, "Percentage to mix with uniform policy");
 ABSL_FLAG(ClusterLevel, cluster_level, ClusterLevel::Half, "Level in the Louvain clustering to sample from");
 ABSL_FLAG(WeightMode, weight_mode, WeightMode::AllCountParentIncrement, "Weight mode");
 ABSL_FLAG(RobustMode, robust_mode, RobustMode::None, "The robust correction mode to use");
-ABSL_FLAG(rlts::CostMode, cost_mode, rlts::CostMode::Slenderness, "The cost mode to use");
+ABSL_FLAG(rlts::CostMode, cost_mode, rlts::CostMode::Slenderness, "The cost mode to use (slenderness, dpi)");
+ABSL_FLAG(
+    libpts::algorithm::rlts::PruningPolicy,
+    prune_policy,
+    libpts::algorithm::rlts::PruningPolicy::Eager,
+    "Pruning mode (none, passive, eager)"
+);
 ABSL_FLAG(double, graph_update_factor, 1.2, "Update frequency factor for the geometric graph update schedule");
-ABSL_FLAG(double, alpha, 1, "Mixing coefficient (wa) for clustering weight term");
-ABSL_FLAG(double, beta, 1, "Mixing coefficient (wb) for heuristic weight term");
+ABSL_FLAG(double, ua, 1, "Mixing coefficient (ua) for clustering weight term");
+ABSL_FLAG(double, ub, 1, "Mixing coefficient (ub) for heuristic weight term");
+ABSL_FLAG(double, alpha, 1, "Coefficient for heuristic term inside exp(-alpha * h)");
 ABSL_FLAG(int, seed, 0, "Seed for all sources of RNG");
 ABSL_FLAG(std::size_t, num_train, INF_SIZE_T, "Number of instances of the max to use for training");
 ABSL_FLAG(std::size_t, num_validate, INF_SIZE_T, "Number of instances of the max to use for validation");
@@ -53,6 +60,7 @@ ABSL_FLAG(int, num_threads, 1, "Number of threads to run in the search thread po
 ABSL_FLAG(int, num_problems_per_batch, 32, "Number of problems per bootstrap iteration");
 ABSL_FLAG(int, grad_steps, 10, "Number of gradient updates per batch iteration");
 ABSL_FLAG(int, device_num, 0, "Torch cuda device number to use (defaults to 1)");
+ABSL_FLAG(bool, init_aggressive, false, "Use amore aggressive Kaiming initialization for the policy/heuristic network");
 // NOLINTEND
 
 namespace {
@@ -68,23 +76,27 @@ auto create_search_inputs(
     std::vector<SearchInputT> search_inputs;
 
     for (auto i : std::views::iota(static_cast<std::size_t>(0)) | std::views::take(problems.size())) {
-        search_inputs.emplace_back(
-            std::format("puzzle_{:d}", i),
-            problems[i],
-            absl::GetFlag(FLAGS_search_budget),
-            absl::GetFlag(FLAGS_inference_batch_size),
-            absl::GetFlag(FLAGS_mix_epsilon),
-            absl::GetFlag(FLAGS_cost_mode),
-            stop_token,
-            model_wrapper,
-            SIIRLTSRerooter<EnvT>{
+        search_inputs.push_back(
+            SearchInputT{
+            .puzzle_name = std::format("puzzle_{:d}", i),
+            .state = problems[i],
+            .search_budget = absl::GetFlag(FLAGS_search_budget),
+            .inference_batch_size = absl::GetFlag(FLAGS_inference_batch_size),
+            .mix_epsilon = absl::GetFlag(FLAGS_mix_epsilon),
+            .cost_mode = absl::GetFlag(FLAGS_cost_mode),
+            .prune_policy = absl::GetFlag(FLAGS_prune_policy),
+            .stop_token = stop_token,
+            .model = model_wrapper,
+            .rerooter = SIIRLTSRerooter<EnvT>{
             absl::GetFlag(FLAGS_robust_mode),
             absl::GetFlag(FLAGS_cluster_level),
             absl::GetFlag(FLAGS_weight_mode),
             absl::GetFlag(FLAGS_graph_update_factor),
+            absl::GetFlag(FLAGS_ua),
+            absl::GetFlag(FLAGS_ub),
             absl::GetFlag(FLAGS_alpha),
-            absl::GetFlag(FLAGS_beta),
             static_cast<int>(i * search_inputs.size()) + absl::GetFlag(FLAGS_seed),
+            }
             }
         );
     }
@@ -197,6 +209,9 @@ void runner(json &model_config_json)
     );
 
     model_wrapper->print();
+    if (absl::GetFlag(FLAGS_init_aggressive)) {
+        model_wrapper->apply(libpts::model::init_model);
+    }
 
     // Install signaller
     std::shared_ptr<libpts::StopToken> stop_token = libpts::signal_installer();
