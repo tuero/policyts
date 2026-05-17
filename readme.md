@@ -49,15 +49,15 @@ export LIBTORCH_ROOT=`python3 -c 'import torch;print(torch.utils.cmake_prefix_pa
 
 Finally, we use `CMakePresets.json` which sets all the required CMake variables.
 ```shell
-cmake --preset=release
-cmake --build --preset=release -- -j8
+cmake --preset=release-linux
+cmake --build --preset=release-linux -- -j8
 ```
 
 > [!IMPORTANT]
 > If you see a CMake warning about an RPATH cycle involving `libtorch/libc10`
 > (often caused by vcpkg reusing an older cached build of a dependency which references a different virtual environment),
 > delete the build folder, and request to not reuse cached artifacts when configuring:
-> `VCPKG_BINARY_SOURCES=clear cmake --preset=debug-linux`
+> `VCPKG_BINARY_SOURCES=clear cmake --preset=release-linux`
 
 
 ## Usage
